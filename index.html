@@ -2,72 +2,65 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Camera Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Photo Web</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        #video { width: 100%; height: 100%; object-fit: cover; }
+        body { margin: 0; background: #000; height: 100vh; display: flex; flex-direction: column; }
+        #video { width: 100%; height: 80vh; object-fit: cover; }
         
-        /* Overlay UI */
-        .controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-around; align-items: center; }
-        .btn { background: rgba(255,255,255,0.3); border: none; padding: 20px; border-radius: 50%; cursor: pointer; color: white; font-size: 20px; }
-        #capture-btn { width: 70px; height: 70px; background: white; border: 4px solid #ccc; }
+        .controls { height: 20vh; display: flex; justify-content: center; align-items: center; gap: 20px; }
+        #capture-btn { width: 70px; height: 70px; border-radius: 50%; background: white; border: 4px solid #333; }
         
-        #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 10; transition: opacity 0.1s; }
-        .flash-active { opacity: 1 !important; }
+        /* Hasil Live Photo */
+        #result-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; display: none; }
+        #live-result { width: 100%; height: 90%; object-fit: contain; }
     </style>
 </head>
 <body>
 
-    <div id="flash-overlay"></div>
     <video id="video" autoplay playsinline></video>
 
     <div class="controls">
-        <button class="btn" id="flip-btn">🔄</button>
-        <button class="btn" id="capture-btn"></button>
-        <button class="btn" id="flash-btn">⚡</button>
+        <button id="capture-btn"></button>
     </div>
 
-    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="result-container">
+        <video id="live-result" loop playsinline></video>
+        <button onclick="closeResult()" style="width: 100%; padding: 20px;">Tutup</button>
+    </div>
 
     <script>
         const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const flashOverlay = document.getElementById('flash-overlay');
-        let currentMode = 'environment'; // 'user' (depan) atau 'environment' (belakang)
+        const liveResult = document.getElementById('live-result');
+        const resultContainer = document.getElementById('result-container');
+        let mediaRecorder;
+        let recordedChunks = [];
 
-        async function startCamera(mode) {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: mode } 
-            });
+        async function init() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             video.srcObject = stream;
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                liveResult.src = URL.createObjectURL(blob);
+                resultContainer.style.display = 'block';
+                recordedChunks = [];
+            };
         }
 
-        // Toggle Kamera (Depan/Belakang)
-        document.getElementById('flip-btn').onclick = () => {
-            currentMode = currentMode === 'user' ? 'environment' : 'user';
-            startCamera(currentMode);
-        };
-
-        // Capture Foto
         document.getElementById('capture-btn').onclick = () => {
-            // Efek Flash
-            flashOverlay.classList.add('flash-active');
-            setTimeout(() => flashOverlay.classList.remove('flash-active'), 100);
-
-            // Simpan ke Canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            // Download Hasil
-            const link = document.createElement('a');
-            link.download = 'foto-saya.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+            mediaRecorder.start();
+            // Rekam durasi 1.5 detik (durasi khas Live Photo)
+            setTimeout(() => mediaRecorder.stop(), 1500);
         };
 
-        startCamera(currentMode);
+        function closeResult() {
+            resultContainer.style.display = 'none';
+        }
+
+        init();
     </script>
 </body>
 </html>
