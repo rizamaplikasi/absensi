@@ -2,22 +2,19 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>iOS Style Camera</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Camera Web</title>
     <style>
-        body { margin: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        #video { width: 100%; max-width: 500px; transform: scaleX(-1); border-radius: 20px; }
+        body { margin: 0; background: #000; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Efek Flash ala iPhone */
-        #flash-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; opacity: 0; pointer-events: none;
-            transition: opacity 0.1s ease-out;
-            z-index: 10;
-        }
-        .flash-active { opacity: 0.8 !important; }
-
-        .controls { position: absolute; bottom: 30px; display: flex; gap: 20px; }
-        button { padding: 15px 25px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; }
+        /* Overlay UI */
+        .controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-around; align-items: center; }
+        .btn { background: rgba(255,255,255,0.3); border: none; padding: 20px; border-radius: 50%; cursor: pointer; color: white; font-size: 20px; }
+        #capture-btn { width: 70px; height: 70px; background: white; border: 4px solid #ccc; }
+        
+        #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 10; transition: opacity 0.1s; }
+        .flash-active { opacity: 1 !important; }
     </style>
 </head>
 <body>
@@ -26,34 +23,51 @@
     <video id="video" autoplay playsinline></video>
 
     <div class="controls">
-        <button id="toggleFlash">Flash: OFF</button>
-        <button id="capture">📸</button>
+        <button class="btn" id="flip-btn">🔄</button>
+        <button class="btn" id="capture-btn"></button>
+        <button class="btn" id="flash-btn">⚡</button>
     </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
         const flashOverlay = document.getElementById('flash-overlay');
-        const toggleFlashBtn = document.getElementById('toggleFlash');
-        let flashEnabled = false;
+        let currentMode = 'environment'; // 'user' (depan) atau 'environment' (belakang)
 
-        // Akses Kamera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-            .then(stream => { video.srcObject = stream; });
+        async function startCamera(mode) {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: mode } 
+            });
+            video.srcObject = stream;
+        }
 
-        toggleFlashBtn.onclick = () => {
-            flashEnabled = !flashEnabled;
-            toggleFlashBtn.innerText = flashEnabled ? "Flash: ON" : "Flash: OFF";
+        // Toggle Kamera (Depan/Belakang)
+        document.getElementById('flip-btn').onclick = () => {
+            currentMode = currentMode === 'user' ? 'environment' : 'user';
+            startCamera(currentMode);
         };
 
-        document.getElementById('capture').onclick = () => {
-            if (flashEnabled) {
-                // Simulasi Flash iOS (terang tajam lalu memudar)
-                flashOverlay.classList.add('flash-active');
-                setTimeout(() => flashOverlay.classList.remove('flash-active'), 150);
-            }
-            // Logika capture foto di sini...
-            alert("Foto berhasil diambil dengan efek smooth!");
+        // Capture Foto
+        document.getElementById('capture-btn').onclick = () => {
+            // Efek Flash
+            flashOverlay.classList.add('flash-active');
+            setTimeout(() => flashOverlay.classList.remove('flash-active'), 100);
+
+            // Simpan ke Canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            // Download Hasil
+            const link = document.createElement('a');
+            link.download = 'foto-saya.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         };
+
+        startCamera(currentMode);
     </script>
 </body>
 </html>
